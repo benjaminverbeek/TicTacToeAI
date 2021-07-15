@@ -1,6 +1,11 @@
 # Simple implementation of n x n tic-tac-toe
 # Addition: a simple reinforcement-learning bot.
+# This is written by a total amateur in ML. I take no responsibility -if- when* this takes over the world.
 # Benjamin Verbeek, 2021-07-15, Sala, Sweden
+
+# TODO: Optimize: storing values in a long list is terribly inefficient. Instead, use "weights" which increment, e.g. in
+# a dictionary or something, and use those as weight for the random choice.
+# Also, all symmetries should be implemented in the training dictionary (rotational and mirror) to improve performance.
 
 import random
 import matplotlib.pyplot as plt
@@ -234,22 +239,22 @@ def NNticTacToe(playAs='X', nums=True, disp=True, manual=True):
     if disp: print("Thank you for playing!")
 
 
-def trainNN(nIter, disp=False, manual=False):
+def trainNN(nIter, playAs='X', disp=False, manual=False):
     print(f"Running {nIter} iterations...")
     for i in range(nIter):
         #print(f"Iteration no: {i}")
-        NNticTacToe(disp=disp, manual=manual)
+        NNticTacToe(disp=disp, manual=manual, playAs='X')
     print("Done.")
 
-nIter = 100_000
+nIter = 10000_000
 xOffset = 10_000
-trainNN(nIter)
+trainNN(nIter, playAs='O')
 
 perfect = [i for i in range(len(progress[:-1]))]
 perfectOffset = [i+xOffset for i in range(len(progress[:-1]))]
 plt.plot(perfect, progress[:-1], label = "NN progress")
 plt.plot(perfect, perfect, label = "100% winrate")
-plt.plot(perfectOffset, perfect, label = "100% winrate (x offset 5000)")
+#plt.plot(perfectOffset, perfect, label = "100% winrate (x offset 5000)")
 plt.plot(perfect, [0]*len(progress[:-1]), label = "50% winrate/draws")
 plt.ylabel('wins')
 plt.title(f'total wins over {nIter} iterations (win: +1, draw: 0, loss: -1)')
@@ -257,9 +262,9 @@ plt.legend()
 plt.show()
 print(len(positions))
 
-NNticTacToe()
+NNticTacToe(playAs='O')
 while input("Continue? y/n: ") != 'n':
-    NNticTacToe()
+    NNticTacToe(playAs='O')
 
 
 # WORKING!! needs to practise
