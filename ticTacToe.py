@@ -144,17 +144,19 @@ while input("Play again? Type 'y' for yes: ") == "y":
     ticTacToe()
 '''
 
-positions = {}  # THE TRAINING! NOTE!
+weights = {}  # THE TRAINING! NOTE! Format: key (a position):list of weights for move 1-9
 progress = [0]   # keeps track of wins (1), losses (-1), and draws (0)
 
 # rotational symmetry not taken into account
-# the real value is stored in variable "positions". NOTE: Careful not to clear it
+# the real value is stored in variable "weights". NOTE: Careful not to clear it
 # NOTE: must clear "moves" though
 def NNticTacToe(playAs='X', nums=True, disp=True, manual=True):
     sz = 3  # board dimension
     reinforceWin = 2    # how much should winning moves be boosted?
-    reinforceDraw = 1   # draw?
+    reinforceDraw = 1   # draw? NOTE: if set to negative, need to add check for neg. weights like for loss
     reinforceLoss = -2  # loss?
+    initialWeight = 2
+    minVal = 0.1        # cant be negative, and we like some random probs. All zero is also bad.
     
     b = Board(sz, nums=nums, disp=disp)
     if disp: print("Welcome to NN Tic-Tac-Toe!")
@@ -165,20 +167,24 @@ def NNticTacToe(playAs='X', nums=True, disp=True, manual=True):
     
     # must keep track of played moves.
 
-    while b.turn < 9:   # full board
+    while b.turn < b.sz**2:   # full board
         player = b.decode[b.turn%2 + 1]
         if disp: print(f"{player}'s turn")
 
         if player == playAs:
             # NN plays
             state = b.state.copy()
-            if disp: print(state)
-            if str(state) not in positions or positions[str(state)] == []: # if all cases deleted, just retry
-                # adds two copies of each legal move (legal moves are empty positions of state)
+            if str(state) not in weights: # if all cases deleted, just retry
+                # adds two copies of each legal move (legal moves are empty weights of state)
                 # i+1 due to offset in enumeration vs list index
-                positions[str(state)] = [i+1 for i, x in enumerate(state) if x not in b.markers] * 2
-            # Select a random value from positions[state]
-            choice = random.choice(positions[str(state)])
+                w = [0]*b.sz**2
+                indices = [i for i, x in enumerate(state) if x not in b.markers]
+                for i in indices:
+                    w[i] = initialWeight
+                weights[str(state)] = w
+            # Select a random value from weights[state]
+            positions = list(range(1,b.sz**2 + 1))
+            choice = random.choices(population=positions, weights=weights[str(state)], k=1)[0]
             #print(choice)
             # Store state & played move for evaluation
             moves.append((str(state), choice))
@@ -193,7 +199,7 @@ def NNticTacToe(playAs='X', nums=True, disp=True, manual=True):
             except:
                 print("Invalid move, try again!")
                 continue
-        else:   
+        else:   # random move plays
             legal = [i+1 for i, x in enumerate(b.state.copy()) if x not in b.markers]    # legal moves in current positon
             choice = random.choice(legal)   # random legal move
             b.move(choice)
@@ -208,7 +214,7 @@ def NNticTacToe(playAs='X', nums=True, disp=True, manual=True):
 
     #print(moves)
     #print()
-    #print(positions)
+    #print(weights)
 
     if disp: print("REINFORCEMENT")
     # REINFORCEMENT:
@@ -217,23 +223,21 @@ def NNticTacToe(playAs='X', nums=True, disp=True, manual=True):
         progress.append(progress[-1])
         # NN won! Reinforce the moves made by increasing odds of picking them
         for k, v in moves:
-            positions[k] += [v]*reinforceWin
+            weights[k][v-1] += reinforceWin
     elif winner == None:
-        progress[-1] += 1
+        progress[-1] += 0
         progress.append(progress[-1])
         # it was a draw
         for k, v in moves:
-            positions[k] += [v]*reinforceDraw
+            weights[k][v-1] += reinforceDraw
     else:
         progress[-1] += -1
         progress.append(progress[-1])
         # NN lost.
         for k, v in moves:
-            for _ in range(abs(reinforceLoss)):
-                try:
-                    positions[k].remove(v)
-                except: # all removed
-                    break
+            weights[k][v-1] += reinforceLoss
+            if weights[k][v-1] <= 0:
+                weights[k][v-1] = minVal
 
 
     if disp: print("Thank you for playing!")
@@ -246,7 +250,7 @@ def trainNN(nIter, playAs='X', disp=False, manual=False):
         NNticTacToe(disp=disp, manual=manual, playAs='X')
     print("Done.")
 
-nIter = 10000_000
+nIter = 1000_000
 xOffset = 10_000
 trainNN(nIter, playAs='O')
 
@@ -260,7 +264,7 @@ plt.ylabel('wins')
 plt.title(f'total wins over {nIter} iterations (win: +1, draw: 0, loss: -1)')
 plt.legend()
 plt.show()
-print(len(positions))
+print(len(weights))
 
 NNticTacToe(playAs='O')
 while input("Continue? y/n: ") != 'n':
